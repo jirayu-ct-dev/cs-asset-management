@@ -11,11 +11,15 @@ export const useResourceList = <T>(endpoint: string, initialFilters: Record<stri
   const query = ref('')
   const page = ref(1)
   const pageSize = ref(20)
+  const sortBy = ref('')
+  const sortDirection = ref<'asc' | 'desc' | ''>('')
   const filters = reactive<Record<string, string>>({ ...initialFilters })
   const requestQuery = computed(() => ({
     page: page.value,
     pageSize: pageSize.value,
     search: query.value.trim() || undefined,
+    sortBy: sortBy.value || undefined,
+    sortDirection: sortDirection.value || undefined,
     ...Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, value || undefined])),
     assetId: endpoint === '/api/loans' && typeof route.query.assetId === 'string' ? route.query.assetId : undefined,
   }))
@@ -54,6 +58,19 @@ export const useResourceList = <T>(endpoint: string, initialFilters: Record<stri
   })
   onScopeDispose(() => clearTimeout(searchTimer))
   const reload = () => refresh()
+  const toggleSort = (key: string) => {
+    if (sortBy.value !== key || !sortDirection.value) {
+      sortBy.value = key
+      sortDirection.value = 'asc'
+    } else if (sortDirection.value === 'asc') {
+      sortDirection.value = 'desc'
+    } else {
+      sortBy.value = ''
+      sortDirection.value = ''
+    }
+    page.value = 1
+    refresh()
+  }
   const goToPage = (value: number) => {
     if (value < 1 || value > totalPages.value || value === page.value) return false
     page.value = value
@@ -61,5 +78,5 @@ export const useResourceList = <T>(endpoint: string, initialFilters: Record<stri
     return true
   }
 
-  return { query, filters, page, pageSize, items, total, totalPages, firstItem, lastItem, status, error, reload, goToPage }
+  return { query, filters, page, pageSize, sortBy, sortDirection, items, total, totalPages, firstItem, lastItem, status, error, reload, goToPage, toggleSort }
 }

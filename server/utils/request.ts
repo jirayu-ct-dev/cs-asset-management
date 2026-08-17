@@ -20,6 +20,19 @@ export const getPageQuery = (event: H3Event) => {
   return { page, pageSize, skip: (page - 1) * pageSize, query }
 }
 
+type SortDirection = 'asc' | 'desc'
+
+export const getSortOrder = <T>(
+  query: { sortBy?: unknown, sortDirection?: unknown },
+  options: Record<string, (direction: SortDirection) => T>,
+  fallback: T[],
+): T[] => {
+  const sortBy = typeof query.sortBy === 'string' ? query.sortBy : ''
+  const direction = query.sortDirection === 'asc' || query.sortDirection === 'desc' ? query.sortDirection : undefined
+  const buildOrder = options[sortBy]
+  return direction && buildOrder ? [buildOrder(direction), { id: 'asc' } as T] : fallback
+}
+
 export const requiredRouteParam = (event: H3Event, name = 'id'): string => {
   const value = getRouterParam(event, name)
   if (!value) throw createError({ statusCode: 400, statusMessage: `Missing ${name}` })

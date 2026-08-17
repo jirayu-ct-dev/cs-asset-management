@@ -1,3 +1,5 @@
+import type { Prisma } from '@prisma/client'
+
 export default defineEventHandler(async (event) => {
   const { page, pageSize, skip, query } = getPageQuery(event)
   const search = typeof query.search === 'string' ? query.search.trim() : ''
@@ -12,11 +14,19 @@ export default defineEventHandler(async (event) => {
     ...(locationId && { locationId }),
   }
   const prisma = usePrisma(event)
+  const orderBy = getSortOrder<Prisma.InspectionRoundOrderByWithRelationInput>(query, {
+    fiscalYear: direction => ({ fiscalYear: direction }),
+    name: direction => ({ name: direction }),
+    'location.name': direction => ({ location: { name: direction } }),
+    openedAt: direction => ({ openedAt: direction }),
+    '_count.items': direction => ({ items: { _count: direction } }),
+    status: direction => ({ status: direction }),
+  }, [{ openedAt: 'desc' }])
   const [items, total] = await prisma.$transaction([
     prisma.inspectionRound.findMany({
       where,
       include: { location: true, items: { select: { result: true } }, attachments: { select: { id: true, originalName: true, mimeType: true, createdAt: true } }, _count: { select: { items: true } } },
-      orderBy: { openedAt: 'desc' },
+      orderBy,
       skip,
       take: pageSize,
     }),

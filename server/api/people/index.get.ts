@@ -1,3 +1,5 @@
+import type { Prisma } from '@prisma/client'
+
 export default defineEventHandler(async (event) => {
   const { page, pageSize, skip, query } = getPageQuery(event)
   const search = String(query.search || '').trim()
@@ -14,8 +16,16 @@ export default defineEventHandler(async (event) => {
     ...(isActive !== undefined && { isActive }),
   }
   const prisma = usePrisma(event)
+  const orderBy = getSortOrder<Prisma.PersonOrderByWithRelationInput>(query, {
+    name: direction => ({ name: direction }),
+    code: direction => ({ code: direction }),
+    type: direction => ({ type: direction }),
+    department: direction => ({ department: direction }),
+    phone: direction => ({ phone: direction }),
+    isActive: direction => ({ isActive: direction }),
+  }, [{ name: 'asc' }])
   const [items, total] = await prisma.$transaction([
-    prisma.person.findMany({ where, orderBy: { name: 'asc' }, skip, take: pageSize }),
+    prisma.person.findMany({ where, orderBy, skip, take: pageSize }),
     prisma.person.count({ where }),
   ])
   return { items, total, page, pageSize }

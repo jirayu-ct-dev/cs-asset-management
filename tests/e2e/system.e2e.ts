@@ -146,15 +146,19 @@ test('admin can complete core database-backed workflows', async ({ page, context
     expect(response.status()).toBe(200)
     return response.json() as Promise<EntityResponse>
   }))
-  const fillerLoans = await Promise.all(fillerAssets.map(assetItem => page.request.post('/api/loans', {
-    data: {
-      ...loanPayload,
-      assetId: assetItem.id,
-      purpose: 'สร้างข้อมูลให้ target อยู่นอกหน้าแรก',
-      borrowedAt: '2026-08-18T00:00:00.000Z',
-      dueAt: '2026-08-19T00:00:00.000Z',
-    },
-  })))
+  const fillerLoans = await Promise.all(fillerAssets.map((assetItem, index) => {
+    const borrowedAt = new Date(Date.UTC(2026, 7, 18 + index))
+    const dueAt = new Date(borrowedAt); dueAt.setUTCDate(dueAt.getUTCDate() + 1)
+    return page.request.post('/api/loans', {
+      data: {
+        ...loanPayload,
+        assetId: assetItem.id,
+        purpose: 'สร้างข้อมูลให้ target อยู่นอกหน้าแรก',
+        borrowedAt: borrowedAt.toISOString(),
+        dueAt: dueAt.toISOString(),
+      },
+    })
+  }))
   expect(fillerLoans.every(response => response.status() === 200)).toBe(true)
   const firstLoanPage = await page.request.get('/api/loans?pageSize=20')
   const firstLoanPageData = await firstLoanPage.json() as ListResponse
@@ -168,6 +172,18 @@ test('admin can complete core database-backed workflows', async ({ page, context
   await page.getByRole('button', { name: 'หน้าถัดไป' }).click()
   await expect(page.getByRole('button', { name: 'หน้า 2', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(page.locator('tbody tr')).toHaveCount(10)
+  await page.getByPlaceholder('ค้นหายืม–คืนทันที…').fill(`FILLER-${unique}`)
+  const loanedAtHeader = page.getByRole('button', { name: 'วันที่ยืม: ลำดับเริ่มต้น' })
+  await expect(loanedAtHeader).toBeVisible()
+  await expect(page.locator('tbody tr').first()).toContainText(`FILLER-${unique}-20`)
+  await loanedAtHeader.click()
+  await expect(page.getByRole('columnheader', { name: /วันที่ยืม/ })).toHaveAttribute('aria-sort', 'ascending')
+  await expect(page.locator('tbody tr').first()).toContainText(`FILLER-${unique}-00`)
+  await page.getByRole('button', { name: 'วันที่ยืม: เรียงจากน้อยไปมาก' }).click()
+  await expect(page.locator('tbody tr').first()).toContainText(`FILLER-${unique}-20`)
+  await page.getByRole('button', { name: 'วันที่ยืม: เรียงจากมากไปน้อย' }).click()
+  await expect(page.getByRole('columnheader', { name: /วันที่ยืม/ })).toHaveAttribute('aria-sort', 'none')
+  await expect(page.locator('tbody tr').first()).toContainText(`FILLER-${unique}-20`)
   await page.getByPlaceholder('ค้นหายืม–คืนทันที…').fill(assetNumber)
   await expect(page.locator('tbody tr')).toHaveCount(1)
   await expect(page.locator('tbody tr').first()).toContainText(assetNumber)
@@ -204,7 +220,7 @@ test('admin can complete core database-backed workflows', async ({ page, context
   })
   expect(returned.status()).toBe(200)
   const loanAttachment = await uploadOwnerAttachment(page.request, 'loan', loan.id, `loan-${unique}.pdf`)
-  await expectListedAttachment(page.request, '/api/loans?status=RETURNED', loan.id, loanAttachment.id)
+  await expectListedAttachment(page.request, `/api/loans?status=RETURNED&assetId=${asset.id}`, loan.id, loanAttachment.id)
 
   const importNumber = `IMPORT-${unique}`
   const csv = [

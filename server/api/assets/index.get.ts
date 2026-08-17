@@ -1,3 +1,5 @@
+import type { Prisma } from '@prisma/client'
+
 export default defineEventHandler(async (event) => {
   const { page, pageSize, skip, query } = getPageQuery(event)
   const search = String(query.search || '').trim()
@@ -18,11 +20,19 @@ export default defineEventHandler(async (event) => {
     ...(query.categoryId && { categoryId: String(query.categoryId) }),
   }
   const prisma = usePrisma(event)
+  const orderBy = getSortOrder<Prisma.AssetOrderByWithRelationInput>(query, {
+    assetNumber: direction => ({ assetNumber: direction }),
+    name: direction => ({ name: direction }),
+    'category.name': direction => ({ category: { name: direction } }),
+    'location.name': direction => ({ location: { name: direction } }),
+    custodyStatus: direction => ({ custodyStatus: direction }),
+    conditionStatus: direction => ({ conditionStatus: direction }),
+  }, [{ assetNumber: 'asc' }])
   const [items, total] = await prisma.$transaction([
     prisma.asset.findMany({
       where,
       include: { category: true, unit: true, location: true, responsiblePerson: true },
-      orderBy: [{ assetNumber: 'asc' }],
+      orderBy,
       skip,
       take: pageSize,
     }),

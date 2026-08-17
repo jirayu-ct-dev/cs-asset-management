@@ -1,3 +1,5 @@
+import type { Prisma } from '@prisma/client'
+
 export default defineEventHandler(async (event) => {
   const { page, pageSize, skip, query } = getPageQuery(event)
   const search = String(query.search || '').trim()
@@ -13,8 +15,16 @@ export default defineEventHandler(async (event) => {
     ] }] }),
   }
   const prisma = usePrisma(event)
+  const orderBy = getSortOrder<Prisma.TransferOrderByWithRelationInput>(query, {
+    'asset.assetNumber': direction => ({ asset: { assetNumber: direction } }),
+    'asset.name': direction => ({ asset: { name: direction } }),
+    'fromLocation.name': direction => ({ fromLocation: { name: direction } }),
+    'toLocation.name': direction => ({ toLocation: { name: direction } }),
+    transferredAt: direction => ({ transferredAt: direction }),
+    reason: direction => ({ reason: direction }),
+  }, [{ transferredAt: 'desc' }])
   const [items, total] = await prisma.$transaction([
-    prisma.transfer.findMany({ where, include: { asset: true, fromLocation: true, toLocation: true, fromResponsible: true, toResponsible: true, attachments: { select: { id: true, originalName: true, mimeType: true, createdAt: true } } }, orderBy: { transferredAt: 'desc' }, skip, take: pageSize }),
+    prisma.transfer.findMany({ where, include: { asset: true, fromLocation: true, toLocation: true, fromResponsible: true, toResponsible: true, attachments: { select: { id: true, originalName: true, mimeType: true, createdAt: true } } }, orderBy, skip, take: pageSize }),
     prisma.transfer.count({ where }),
   ])
   return { items, total, page, pageSize }

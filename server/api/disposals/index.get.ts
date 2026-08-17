@@ -1,3 +1,5 @@
+import type { Prisma } from '@prisma/client'
+
 export default defineEventHandler(async (event) => {
   const { page, pageSize, skip, query } = getPageQuery(event)
   const status = query.status ? String(query.status) as 'PROPOSED' | 'COMPLETED' | 'CANCELLED' : undefined
@@ -13,8 +15,16 @@ export default defineEventHandler(async (event) => {
     ] }),
   }
   const prisma = usePrisma(event)
+  const orderBy = getSortOrder<Prisma.DisposalOrderByWithRelationInput>(query, {
+    'asset.assetNumber': direction => ({ asset: { assetNumber: direction } }),
+    'asset.name': direction => ({ asset: { name: direction } }),
+    proposedAt: direction => ({ proposedAt: direction }),
+    reason: direction => ({ reason: direction }),
+    method: direction => ({ method: direction }),
+    status: direction => ({ status: direction }),
+  }, [{ proposedAt: 'desc' }])
   const [items, total] = await prisma.$transaction([
-    prisma.disposal.findMany({ where, include: { asset: true, attachments: { select: { id: true, originalName: true, mimeType: true, createdAt: true } } }, orderBy: { proposedAt: 'desc' }, skip, take: pageSize }),
+    prisma.disposal.findMany({ where, include: { asset: true, attachments: { select: { id: true, originalName: true, mimeType: true, createdAt: true } } }, orderBy, skip, take: pageSize }),
     prisma.disposal.count({ where }),
   ])
   return { items, total, page, pageSize }

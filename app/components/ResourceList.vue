@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-explicit-any */
-interface Column { key: string, label: string, type?: 'date' | 'status' | 'money' }
+interface Column { key: string, label: string, type?: 'date' | 'status' | 'money', sortable?: boolean }
 interface FilterOption { label: string, value: string }
 interface FilterDefinition { key: string, label: string, options: FilterOption[] }
 interface ReferenceItem { id: string, name: string }
@@ -26,7 +26,9 @@ const filterKeys: Record<string, string[]> = {
 }
 const initialFilters = Object.fromEntries((filterKeys[props.endpoint] || []).map(key => [key, '']))
 const { formatThaiDate } = useThaiDate()
-const { query, filters, page, pageSize, items, total, totalPages, firstItem, lastItem, status, error, reload, goToPage } = useResourceList<Record<string, any>>(props.endpoint, initialFilters)
+const { query, filters, page, pageSize, sortBy, sortDirection, items, total, totalPages, firstItem, lastItem, status, error, reload, goToPage, toggleSort } = useResourceList<Record<string, any>>(props.endpoint, initialFilters)
+const sortIcon = (key: string) => sortBy.value !== key || !sortDirection.value ? 'i-lucide-arrow-up-down' : sortDirection.value === 'asc' ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down'
+const sortLabel = (column: Column) => sortBy.value !== column.key || !sortDirection.value ? `${column.label}: ลำดับเริ่มต้น` : `${column.label}: เรียง${sortDirection.value === 'asc' ? 'จากน้อยไปมาก' : 'จากมากไปน้อย'}`
 const getValue = (row: Record<string, any>, path: string): any => path.split('.').reduce<any>((value, part) => value?.[part], row)
 const money = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 2 })
 const toast = useToast()
@@ -180,7 +182,7 @@ const runAction = async (row: Record<string, any>, action: string) => {
     <AppState :status="status" :error="error" :empty="items.length === 0" :empty-title="emptyTitle" @retry="reload">
       <div class="overflow-x-auto">
         <table>
-          <thead><tr><th v-for="column in columns" :key="column.key">{{ column.label }}</th><th v-if="hasActions" class="w-px whitespace-nowrap text-center">ดำเนินการ</th></tr></thead>
+          <thead><tr><th v-for="column in columns" :key="column.key" :aria-sort="column.sortable ? (sortBy === column.key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none') : undefined"><button v-if="column.sortable" class="inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-left hover:text-teal-700 dark:hover:text-teal-400" type="button" :aria-label="sortLabel(column)" @click="toggleSort(column.key)">{{ column.label }}<UIcon :name="sortIcon(column.key)" class="size-4 shrink-0" /></button><template v-else>{{ column.label }}</template></th><th v-if="hasActions" class="w-px whitespace-nowrap text-center">ดำเนินการ</th></tr></thead>
           <tbody>
             <tr v-for="row in items" :key="row.id">
               <td v-for="(column, index) in columns" :key="column.key">

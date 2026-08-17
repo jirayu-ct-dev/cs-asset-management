@@ -1,3 +1,5 @@
+import type { Prisma } from '@prisma/client'
+
 export default defineEventHandler(async (event) => {
   const { page, pageSize, skip, query } = getPageQuery(event)
   const search = String(query.search || '').trim()
@@ -15,8 +17,15 @@ export default defineEventHandler(async (event) => {
     ] }),
   }
   const prisma = usePrisma(event)
+  const orderBy = getSortOrder<Prisma.AuditLogOrderByWithRelationInput>(query, {
+    createdAt: direction => ({ createdAt: direction }),
+    'actor.name': direction => ({ actor: { name: direction } }),
+    action: direction => ({ action: direction }),
+    entityType: direction => ({ entityType: direction }),
+    ipAddress: direction => ({ ipAddress: direction }),
+  }, [{ createdAt: 'desc' }])
   const [items, total] = await prisma.$transaction([
-    prisma.auditLog.findMany({ where, include: { actor: { select: { id: true, name: true, email: true } } }, orderBy: { createdAt: 'desc' }, skip, take: pageSize }),
+    prisma.auditLog.findMany({ where, include: { actor: { select: { id: true, name: true, email: true } } }, orderBy, skip, take: pageSize }),
     prisma.auditLog.count({ where }),
   ])
   return { items, total, page, pageSize }

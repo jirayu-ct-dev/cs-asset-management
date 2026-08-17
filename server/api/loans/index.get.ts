@@ -1,3 +1,5 @@
+import type { Prisma } from '@prisma/client'
+
 export default defineEventHandler(async (event) => {
   const { page, pageSize, skip, query } = getPageQuery(event)
   const status = query.status ? String(query.status) as 'ACTIVE' | 'RETURNED' | 'CANCELLED' : undefined
@@ -14,11 +16,19 @@ export default defineEventHandler(async (event) => {
       { borrower: { name: { contains: search, mode: 'insensitive' as const } } },
     ] }),
   }
+  const orderBy = getSortOrder<Prisma.LoanOrderByWithRelationInput>(query, {
+    'asset.assetNumber': direction => ({ asset: { assetNumber: direction } }),
+    'asset.name': direction => ({ asset: { name: direction } }),
+    'borrower.name': direction => ({ borrower: { name: direction } }),
+    loanedAt: direction => ({ loanedAt: direction }),
+    dueAt: direction => ({ dueAt: direction }),
+    status: direction => ({ status: direction }),
+  }, [{ loanedAt: 'desc' }])
   const [items, total] = await prisma.$transaction([
     prisma.loan.findMany({
       where,
       include: { asset: true, borrower: true, createdBy: { select: { id: true, name: true } }, attachments: { select: { id: true, originalName: true, mimeType: true, createdAt: true } } },
-      orderBy: { loanedAt: 'desc' },
+      orderBy,
       skip,
       take: pageSize,
     }),
