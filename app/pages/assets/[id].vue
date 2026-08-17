@@ -55,7 +55,7 @@ const quickAction = async (action: 'loan' | 'loan-state' | 'repair' | 'transfer'
 
 <template>
   <PageHeader :title="asset?.name || 'รายละเอียดครุภัณฑ์'" :description="asset?.assetNumber">
-    <button class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="button" @click="printQr"><UIcon name="i-lucide-qr-code" class="size-4" />พิมพ์ QR</button><NuxtLink :to="`/assets/${id}/edit`" class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-transparent bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500"><UIcon name="i-lucide-pencil" class="size-4" />แก้ไข</NuxtLink>
+    <button class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="button" @click="printQr"><UIcon name="i-lucide-qr-code" class="size-4" />พิมพ์ QR</button><NuxtLink :to="`/assets/edit/${id}`" class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-transparent bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500"><UIcon name="i-lucide-pencil" class="size-4" />แก้ไข</NuxtLink>
   </PageHeader>
   <AppState :status="status" :error="error" @retry="refresh">
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1.6fr_.8fr]">
