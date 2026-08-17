@@ -1,6 +1,10 @@
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface Column { key: string, label: string, type?: 'date' | 'status' | 'money' }
+interface FilterOption { label: string, value: string }
+interface FilterDefinition { key: string, label: string, options: FilterOption[] }
+interface ReferenceItem { id: string, name: string }
+interface ReferenceResponse { categories: ReferenceItem[], locations: ReferenceItem[] }
 const props = defineProps<{
   endpoint: string
   title: string
@@ -11,10 +15,51 @@ const props = defineProps<{
   emptyTitle?: string
 }>()
 const { formatThaiDate } = useThaiDate()
-const { query, items, total, status, error, reload } = useResourceList<Record<string, any>>(props.endpoint)
+const { query, filters, page, pageSize, items, total, totalPages, firstItem, lastItem, status, error, reload, goToPage } = useResourceList<Record<string, any>>(props.endpoint)
 const getValue = (row: Record<string, any>, path: string): any => path.split('.').reduce<any>((value, part) => value?.[part], row)
 const money = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 2 })
 const toast = useToast()
+const needsReferences = ['/api/assets', '/api/transfers', '/api/inspections'].includes(props.endpoint)
+const { data: references } = useFetch<ReferenceResponse>('/api/references', { immediate: needsReferences })
+const options = (items: ReferenceItem[] | undefined): FilterOption[] => (items || []).map(item => ({ label: item.name, value: item.id }))
+const statusOptions: Record<string, FilterOption[]> = {
+  loans: [{ label: 'กำลังยืม', value: 'ACTIVE' }, { label: 'คืนแล้ว', value: 'RETURNED' }, { label: 'ยกเลิก', value: 'CANCELLED' }],
+  repairs: [{ label: 'แจ้งแล้ว', value: 'REPORTED' }, { label: 'ส่งซ่อม', value: 'SENT' }, { label: 'เสร็จสิ้น', value: 'COMPLETED' }, { label: 'ยกเลิก', value: 'CANCELLED' }],
+  inspections: [{ label: 'เปิดอยู่', value: 'OPEN' }, { label: 'ปิดแล้ว', value: 'CLOSED' }],
+  disposals: [{ label: 'เสนอจำหน่าย', value: 'PROPOSED' }, { label: 'จำหน่ายแล้ว', value: 'COMPLETED' }, { label: 'ยกเลิก', value: 'CANCELLED' }],
+}
+const filterDefinitions = computed<FilterDefinition[]>(() => {
+  if (props.endpoint === '/api/assets') return [
+    { key: 'categoryId', label: 'ทุกหมวด', options: options(references.value?.categories) },
+    { key: 'locationId', label: 'ทุกสถานที่', options: options(references.value?.locations) },
+    { key: 'custodyStatus', label: 'ทุกสถานะ', options: [{ label: 'พร้อมใช้งาน', value: 'AVAILABLE' }, { label: 'ถูกยืม', value: 'BORROWED' }, { label: 'ส่งซ่อม', value: 'IN_REPAIR' }, { label: 'สูญหาย', value: 'MISSING' }] },
+    { key: 'conditionStatus', label: 'ทุกสภาพ', options: [{ label: 'ปกติ', value: 'NORMAL' }, { label: 'ชำรุดแต่ใช้ได้', value: 'DAMAGED_USABLE' }, { label: 'ใช้การไม่ได้', value: 'UNUSABLE' }] },
+  ]
+  if (props.endpoint === '/api/people') return [
+    { key: 'type', label: 'ทุกประเภท', options: [{ label: 'นักศึกษา', value: 'STUDENT' }, { label: 'บุคลากร', value: 'STAFF' }, { label: 'บุคคลภายนอก', value: 'EXTERNAL' }] },
+    { key: 'isActive', label: 'ทุกสถานะ', options: [{ label: 'ใช้งาน', value: 'true' }, { label: 'ปิดใช้งาน', value: 'false' }] },
+  ]
+  if (props.endpoint === '/api/loans') return [{ key: 'status', label: 'ทุกสถานะ', options: statusOptions.loans! }]
+  if (props.endpoint === '/api/repairs') return [{ key: 'status', label: 'ทุกสถานะ', options: statusOptions.repairs! }]
+  if (props.endpoint === '/api/transfers') return [{ key: 'locationId', label: 'ทุกสถานที่', options: options(references.value?.locations) }]
+  if (props.endpoint === '/api/inspections') return [{ key: 'status', label: 'ทุกสถานะ', options: statusOptions.inspections! }, { key: 'locationId', label: 'ทุกสถานที่', options: options(references.value?.locations) }]
+  if (props.endpoint === '/api/disposals') return [{ key: 'status', label: 'ทุกสถานะ', options: statusOptions.disposals! }]
+  if (props.endpoint === '/api/audit') return [{ key: 'entityType', label: 'ข้อมูลทุกประเภท', options: ['Asset', 'Person', 'Loan', 'RepairJob', 'Transfer', 'InspectionRound', 'InspectionItem', 'Disposal', 'User', 'ImportBatch'].map(value => ({ label: value, value })) }]
+  return []
+})
+const visiblePages = computed(() => {
+  const start = Math.max(1, Math.min(page.value - 2, totalPages.value - 4))
+  const end = Math.min(totalPages.value, start + 4)
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index)
+})
+const changePage = (target: number) => {
+  if (goToPage(target)) return
+  toast.add({ title: 'เปลี่ยนหน้าไม่ได้', description: target < 1 ? 'อยู่หน้าแรกแล้ว' : target > totalPages.value ? 'อยู่หน้าสุดท้ายแล้ว' : 'กำลังแสดงหน้านี้อยู่', color: 'warning' })
+}
+const refreshTable = async () => {
+  await reload()
+  toast.add({ title: 'รีเฟรชข้อมูลแล้ว', color: 'success' })
+}
 const explainUnavailableCreate = () => toast.add({
   title: `ยังเพิ่ม${props.title}จากหน้านี้ไม่ได้`,
   description: 'แบบฟอร์มสำหรับรายการนี้ยังไม่พร้อมใช้งาน กรุณาใช้ workflow ที่เกี่ยวข้อง',
@@ -115,10 +160,11 @@ const runAction = async (row: Record<string, any>, action: string) => {
     <button v-else-if="createLabel" class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-transparent bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500" type="button" @click="explainUnavailableCreate"><UIcon name="i-lucide-plus" class="size-4" />{{ createLabel }}</button>
   </PageHeader>
   <section class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-    <div class="flex items-center justify-between gap-4 border-b border-slate-200 p-5 dark:border-slate-800 flex flex-wrap items-center gap-2">
-      <div class="relative min-w-0 flex-1 md:min-w-56"><UIcon name="i-lucide-search" class="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" /><input v-model="query" class="pl-10" type="search" :placeholder="`ค้นหา${title}…`" @keyup.enter="reload"></div>
-      <button class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="button" @click="reload"><UIcon name="i-lucide-search" class="size-4" />ค้นหา</button>
-      <span class="text-sm text-slate-500 dark:text-slate-400">{{ total.toLocaleString('th-TH') }} รายการ</span>
+    <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 p-5 dark:border-slate-800">
+      <div class="relative min-w-0 flex-1 md:min-w-56"><UIcon name="i-lucide-search" class="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" /><input v-model="query" class="pl-10" type="search" :placeholder="`ค้นหา${title}ทันที…`"></div>
+      <select v-for="filter in filterDefinitions" :key="filter.key" v-model="filters[filter.key]" class="w-auto min-w-36" :aria-label="filter.label"><option value="">{{ filter.label }}</option><option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option></select>
+      <button class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="button" @click="refreshTable"><UIcon name="i-lucide-refresh-cw" class="size-4" />รีเฟรช</button>
+      <span class="ml-auto text-sm text-slate-500 dark:text-slate-400">{{ total.toLocaleString('th-TH') }} รายการ</span>
     </div>
     <AppState :status="status" :error="error" :empty="items.length === 0" :empty-title="emptyTitle" @retry="reload">
       <div class="overflow-x-auto">
@@ -152,5 +198,13 @@ const runAction = async (row: Record<string, any>, action: string) => {
         </table>
       </div>
     </AppState>
+    <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 p-4 dark:border-slate-800">
+      <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400"><span>แสดง {{ firstItem.toLocaleString('th-TH') }}–{{ lastItem.toLocaleString('th-TH') }} จาก {{ total.toLocaleString('th-TH') }}</span><label class="flex items-center gap-2">ต่อหน้า<select v-model.number="pageSize" class="w-auto" aria-label="จำนวนรายการต่อหน้า"><option :value="10">10</option><option :value="20">20</option><option :value="50">50</option><option :value="100">100</option></select></label></div>
+      <nav class="flex items-center gap-1" aria-label="แบ่งหน้าตาราง">
+        <button class="grid size-9 place-items-center rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800" type="button" aria-label="หน้าก่อนหน้า" @click="changePage(page - 1)"><UIcon name="i-lucide-chevron-left" class="size-4" /></button>
+        <button v-for="number in visiblePages" :key="number" class="grid size-9 place-items-center rounded-lg border text-sm font-bold" :class="number === page ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800'" type="button" :aria-label="`หน้า ${number}`" :aria-current="number === page ? 'page' : undefined" @click="changePage(number)">{{ number.toLocaleString('th-TH') }}</button>
+        <button class="grid size-9 place-items-center rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800" type="button" aria-label="หน้าถัดไป" @click="changePage(page + 1)"><UIcon name="i-lucide-chevron-right" class="size-4" /></button>
+      </nav>
+    </footer>
   </section>
 </template>

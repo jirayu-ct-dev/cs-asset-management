@@ -1,12 +1,16 @@
 export default defineEventHandler(async (event) => {
   const { page, pageSize, skip, query } = getPageQuery(event)
   const search = typeof query.search === 'string' ? query.search.trim() : ''
-  const where = search ? {
-    OR: [
+  const status = ['OPEN', 'CLOSED'].includes(String(query.status)) ? String(query.status) as 'OPEN' | 'CLOSED' : undefined
+  const locationId = typeof query.locationId === 'string' ? query.locationId : undefined
+  const where = {
+    ...(search && { OR: [
       { name: { contains: search, mode: 'insensitive' as const } },
       ...(Number.isInteger(Number(search)) ? [{ fiscalYear: Number(search) }] : []),
-    ],
-  } : {}
+    ] }),
+    ...(status && { status }),
+    ...(locationId && { locationId }),
+  }
   const prisma = usePrisma(event)
   const [items, total] = await prisma.$transaction([
     prisma.inspectionRound.findMany({

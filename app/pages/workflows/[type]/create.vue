@@ -12,17 +12,22 @@ const meta: Record<string, { title: string, back: string }> = {
 const current = meta[type]
 if (!current) throw createError({ statusCode: 404, statusMessage: 'ไม่พบแบบฟอร์ม' })
 const queryValue = (key: string, fallback = '') => typeof route.query[key] === 'string' ? String(route.query[key]) : fallback
+const selectedAssetId = queryValue('assetId')
+const selectedPersonId = queryValue('borrowerId') || queryValue('newResponsiblePersonId')
 const form = reactive<any>({
-  name: '', code: '', type: 'STAFF', department: '', phone: '', email: '', assetId: queryValue('assetId'),
+  name: '', code: '', type: 'STAFF', department: '', phone: '', email: '', assetId: selectedAssetId,
   borrowerId: queryValue('borrowerId'), purpose: queryValue('purpose'), borrowedAt: queryValue('borrowedAt', today), dueAt: queryValue('dueAt', today), conditionBefore: queryValue('conditionBefore', 'NORMAL'), reportedAt: queryValue('reportedAt', today), symptom: queryValue('symptom'),
   destinationLocationId: queryValue('destinationLocationId'), newResponsiblePersonId: queryValue('newResponsiblePersonId'), transferredAt: queryValue('transferredAt', today), reason: queryValue('reason'), fiscalYear: new Date().getFullYear() + 543,
   locationId: '', proposedAt: queryValue('proposedAt', today),
 })
 const { data: assetsData } = useFetch<any>('/api/assets', { query: { pageSize: 100 } })
 const { data: peopleData } = useFetch<any>('/api/people', { query: { pageSize: 100 } })
+const { data: selectedAsset } = useFetch<any>(selectedAssetId ? `/api/assets/${selectedAssetId}` : '/api/assets/__selected__', { immediate: Boolean(selectedAssetId) })
+const { data: selectedPerson } = useFetch<any>(selectedPersonId ? `/api/people/${selectedPersonId}` : '/api/people/__selected__', { immediate: Boolean(selectedPersonId) })
 const { data: references } = useFetch<any>('/api/references')
-const assets = computed(() => assetsData.value?.items || [])
-const people = computed(() => peopleData.value?.items || [])
+const includeSelected = (items: any[], selected: any) => selected && !items.some(item => item.id === selected.id) ? [selected, ...items] : items
+const assets = computed(() => includeSelected(assetsData.value?.items || [], selectedAsset.value))
+const people = computed(() => includeSelected(peopleData.value?.items || [], selectedPerson.value))
 const pending = ref(false)
 const submit = async () => {
   if (pending.value) { toast.add({ title: 'กำลังบันทึก', description: 'กรุณารอคำขอปัจจุบัน', color: 'warning' }); return }

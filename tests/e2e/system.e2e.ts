@@ -161,6 +161,28 @@ test('admin can complete core database-backed workflows', async ({ page, context
   expect(firstLoanPageData.total).toBeGreaterThanOrEqual(22)
   expect(firstLoanPageData.items.some(item => item.id === loan.id)).toBe(false)
 
+  await page.goto('/loans')
+  await page.waitForLoadState('networkidle')
+  await page.getByLabel('จำนวนรายการต่อหน้า').selectOption('10')
+  await expect(page.locator('tbody tr')).toHaveCount(10)
+  await page.getByRole('button', { name: 'หน้าถัดไป' }).click()
+  await expect(page.getByRole('button', { name: 'หน้า 2', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect(page.locator('tbody tr')).toHaveCount(10)
+  await page.getByPlaceholder('ค้นหายืม–คืนทันที…').fill(assetNumber)
+  await expect(page.locator('tbody tr')).toHaveCount(1)
+  await expect(page.locator('tbody tr').first()).toContainText(assetNumber)
+  await page.getByLabel('ทุกสถานะ').selectOption('ACTIVE')
+  await expect(page.locator('tbody tr')).toHaveCount(1)
+  await page.getByRole('button', { name: 'รีเฟรช' }).click()
+  await expect(page.getByText('รีเฟรชข้อมูลแล้ว', { exact: true })).toBeVisible()
+
+  await page.goto('/assets')
+  await page.waitForLoadState('networkidle')
+  await page.getByLabel('ทุกหมวด').selectOption(category.id)
+  await page.getByPlaceholder('ค้นหาทะเบียนครุภัณฑ์ทันที…').fill(assetNumber)
+  await expect(page.locator('tbody tr')).toHaveCount(1)
+  await expect(page.locator('tbody tr').first()).toContainText(assetNumber)
+
   const filteredLoanApi = await page.request.get(`/api/loans?assetId=${asset.id}`)
   expect(filteredLoanApi.status()).toBe(200)
   const filteredLoanList = await filteredLoanApi.json() as ListResponse
@@ -252,7 +274,7 @@ test('admin can complete core database-backed workflows', async ({ page, context
     mimeType: 'application/pdf',
     buffer: Buffer.from('%PDF-1.4\n% loan UI evidence\n'),
   })
-  await expect(page.getByText('แนบหลักฐานแล้ว')).toBeVisible()
+  await expect(page.getByText('แนบหลักฐานแล้ว', { exact: true })).toBeVisible()
   await expect(quickLoanRow.getByRole('link', { name: uiLoanEvidence })).toBeVisible()
 
   const inspectionResponse = await page.request.post('/api/inspections', {

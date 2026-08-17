@@ -58,8 +58,8 @@ test('regression: person edit action opens the form and saves changes', async ({
   const person = await createResponse.json() as Entity
 
   await page.goto('/people')
-  await page.getByPlaceholder('ค้นหาบุคคล…').fill(`EDIT-${unique}`)
-  await page.getByRole('button', { name: 'ค้นหา' }).click()
+  await page.waitForLoadState('networkidle')
+  await page.getByPlaceholder('ค้นหาบุคคลทันที…').fill(`EDIT-${unique}`)
   const row = page.locator('tbody tr').filter({ hasText: `EDIT-${unique}` })
   await expect(row).toHaveCount(1)
   await row.getByRole('link', { name: 'แก้ไขบุคคล' }).click()
