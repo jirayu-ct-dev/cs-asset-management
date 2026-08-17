@@ -62,6 +62,7 @@ test('regression: person edit action opens the form and saves changes', async ({
   await page.getByPlaceholder('ค้นหาบุคคลทันที…').fill(`EDIT-${unique}`)
   const row = page.locator('tbody tr').filter({ hasText: `EDIT-${unique}` })
   await expect(row).toHaveCount(1)
+  await expect(row.getByText('เปิดการใช้งาน', { exact: true })).toBeVisible()
   await row.getByRole('link', { name: 'แก้ไขบุคคล' }).click()
   await expect(page).toHaveURL(`/edit/people/${person.id}`)
   await expect(page.getByRole('heading', { name: 'แก้ไขข้อมูลบุคคล' })).toBeVisible()

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-explicit-any */
-interface Column { key: string, label: string, type?: 'date' | 'status' | 'money', sortable?: boolean }
+interface Column { key: string, label: string, type?: 'date' | 'status' | 'money' | 'active', sortable?: boolean }
 interface FilterOption { label: string, value: string }
 interface FilterDefinition { key: string, label: string, options: FilterOption[] }
 interface ReferenceItem { id: string, name: string }
@@ -50,7 +50,7 @@ const filterDefinitions = computed<FilterDefinition[]>(() => {
   ]
   if (props.endpoint === '/api/people') return [
     { key: 'type', label: 'ทุกประเภท', options: [{ label: 'นักศึกษา', value: 'STUDENT' }, { label: 'บุคลากร', value: 'STAFF' }, { label: 'บุคคลภายนอก', value: 'EXTERNAL' }] },
-    { key: 'isActive', label: 'ทุกสถานะ', options: [{ label: 'ใช้งาน', value: 'true' }, { label: 'ปิดใช้งาน', value: 'false' }] },
+    { key: 'isActive', label: 'ทุกสถานะ', options: [{ label: 'เปิดการใช้งาน', value: 'true' }, { label: 'ปิดการใช้งาน', value: 'false' }] },
   ]
   if (props.endpoint === '/api/loans') return [{ key: 'status', label: 'ทุกสถานะ', options: statusOptions.loans! }]
   if (props.endpoint === '/api/repairs') return [{ key: 'status', label: 'ทุกสถานะ', options: statusOptions.repairs! }]
@@ -187,6 +187,7 @@ const runAction = async (row: Record<string, any>, action: string) => {
             <tr v-for="row in items" :key="row.id">
               <td v-for="(column, index) in columns" :key="column.key">
                 <StatusBadge v-if="column.type === 'status'" :value="getValue(row, column.key)" />
+                <span v-else-if="column.type === 'active'" class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-extrabold" :class="getValue(row, column.key) ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'">{{ getValue(row, column.key) ? 'เปิดการใช้งาน' : 'ปิดการใช้งาน' }}</span>
                 <template v-else-if="column.type === 'date'">{{ formatThaiDate(getValue(row, column.key)) }}</template>
                 <template v-else-if="column.type === 'money'">{{ money.format(Number(getValue(row, column.key) || 0)) }}</template>
                 <NuxtLink v-else-if="index === 0 && row.id && endpoint === '/api/assets'" :to="`/assets/${row.id}`" class="font-bold text-teal-700 hover:underline dark:text-teal-400">{{ getValue(row, column.key) || '—' }}</NuxtLink>
