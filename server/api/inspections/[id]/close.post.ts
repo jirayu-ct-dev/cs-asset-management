@@ -3,6 +3,7 @@ export default defineEventHandler(async (event) => {
   const id = requiredRouteParam(event)
   const body = await readBody<{ confirm?: boolean }>(event)
   return usePrisma(event).$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM inspection_rounds WHERE id = ${id}::uuid FOR UPDATE`
     const round = await tx.inspectionRound.findUniqueOrThrow({ where: { id } })
     if (round.status !== 'OPEN') throw createError({ statusCode: 409, statusMessage: 'รอบตรวจปิดอยู่แล้ว' })
     const [unchecked, abnormal] = await Promise.all([

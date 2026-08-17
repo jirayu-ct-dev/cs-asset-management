@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   assertBorrowable,
+  assertRepairable,
   assertTransferable,
   repairResultState,
   returnState,
@@ -26,6 +27,13 @@ describe('workflow state rules', () => {
     expect(() => assertTransferable({ ...availableAsset, lifecycleStatus: 'DISPOSED' })).toThrow()
   })
 
+  it('allows repairs only for active assets in available custody', () => {
+    expect(() => assertRepairable(availableAsset)).not.toThrow()
+    expect(() => assertRepairable({ ...availableAsset, lifecycleStatus: 'PROPOSED_FOR_DISPOSAL' })).toThrow()
+    expect(() => assertRepairable({ ...availableAsset, custodyStatus: 'MISSING' })).toThrow()
+    expect(() => assertRepairable({ ...availableAsset, custodyStatus: 'IN_REPAIR' })).toThrow()
+  })
+
   it('derives return and repair result states', () => {
     expect(returnState('DAMAGED_USABLE')).toEqual({
       custodyStatus: 'AVAILABLE',
@@ -35,4 +43,3 @@ describe('workflow state rules', () => {
     expect(repairResultState(false)).toEqual({ custodyStatus: 'AVAILABLE', conditionStatus: 'UNUSABLE' })
   })
 })
-

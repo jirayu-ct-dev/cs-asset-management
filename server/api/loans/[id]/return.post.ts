@@ -25,6 +25,8 @@ export default defineEventHandler(async (event) => {
           reportedAt: input.returnedAt,
           reportedBy: admin.name,
           issue: input.damageDescription || 'พบความเสียหายตอนรับคืน',
+          conditionBefore: input.conditionAfter,
+          custodyBefore: 'AVAILABLE',
           createdById: admin.id,
         },
       })

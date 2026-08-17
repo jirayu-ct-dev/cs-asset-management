@@ -27,6 +27,15 @@ export const assertTransferable = (asset: AssetState): void => {
   }
 }
 
+export const assertRepairable = (asset: AssetState): void => {
+  if (asset.lifecycleStatus !== 'ACTIVE') {
+    throw createError({ statusCode: 409, statusMessage: 'ครุภัณฑ์ไม่ได้อยู่ในวงจรใช้งาน' })
+  }
+  if (asset.custodyStatus !== 'AVAILABLE') {
+    throw createError({ statusCode: 409, statusMessage: 'ครุภัณฑ์ต้องพร้อมใช้งานก่อนแจ้งซ่อม' })
+  }
+}
+
 export const returnState = (condition: ConditionStatus) => {
   return {
     custodyStatus: 'AVAILABLE' as const,

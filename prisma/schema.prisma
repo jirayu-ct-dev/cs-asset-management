@@ -295,26 +295,28 @@ model Loan {
 }
 
 model RepairJob {
-  id             String         @id @default(uuid()) @db.Uuid
-  assetId        String         @map("asset_id") @db.Uuid
-  reportedAt     DateTime       @map("reported_at") @db.Timestamptz(3)
-  reportedBy     String         @map("reported_by") @db.VarChar(200)
-  issue          String         @db.Text
-  status         RepairStatus   @default(REPORTED)
-  vendor         String?        @db.VarChar(250)
-  sentAt         DateTime?      @map("sent_at") @db.Timestamptz(3)
-  documentNumber String?        @map("document_number") @db.VarChar(100)
-  expectedBackAt DateTime?      @map("expected_back_at") @db.Date
-  completedAt    DateTime?      @map("completed_at") @db.Timestamptz(3)
-  outcome        RepairOutcome?
-  resultNotes    String?        @map("result_notes") @db.Text
-  cost           Decimal?       @db.Decimal(14, 2)
-  cancelReason   String?        @map("cancel_reason") @db.Text
-  cancelledAt    DateTime?      @map("cancelled_at") @db.Timestamptz(3)
-  createdById    String         @map("created_by_id") @db.Uuid
-  closedById     String?        @map("closed_by_id") @db.Uuid
-  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id              String             @id @default(uuid()) @db.Uuid
+  assetId         String             @map("asset_id") @db.Uuid
+  reportedAt      DateTime           @map("reported_at") @db.Timestamptz(3)
+  reportedBy      String             @map("reported_by") @db.VarChar(200)
+  issue           String             @db.Text
+  conditionBefore AssetCondition     @map("condition_before")
+  custodyBefore   AssetCustodyStatus @map("custody_before")
+  status          RepairStatus       @default(REPORTED)
+  vendor          String?            @db.VarChar(250)
+  sentAt          DateTime?          @map("sent_at") @db.Timestamptz(3)
+  documentNumber  String?            @map("document_number") @db.VarChar(100)
+  expectedBackAt  DateTime?          @map("expected_back_at") @db.Date
+  completedAt     DateTime?          @map("completed_at") @db.Timestamptz(3)
+  outcome         RepairOutcome?
+  resultNotes     String?            @map("result_notes") @db.Text
+  cost            Decimal?           @db.Decimal(14, 2)
+  cancelReason    String?            @map("cancel_reason") @db.Text
+  cancelledAt     DateTime?          @map("cancelled_at") @db.Timestamptz(3)
+  createdById     String             @map("created_by_id") @db.Uuid
+  closedById      String?            @map("closed_by_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   asset       Asset        @relation(fields: [assetId], references: [id], onDelete: Restrict)
   createdBy   User         @relation("RepairCreator", fields: [createdById], references: [id], onDelete: Restrict)

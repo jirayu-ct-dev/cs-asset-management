@@ -29,7 +29,16 @@ const submit = async () => {
   pending.value = true
   submitError.value = ''
   try {
-    await $fetch(`/api/people/${id}`, { method: 'PATCH', body: form })
+    await $fetch(`/api/people/${id}`, {
+      method: 'PATCH',
+      body: {
+        ...form,
+        code: form.code || null,
+        department: form.department || null,
+        phone: form.phone || null,
+        email: form.email || null,
+      },
+    })
     toast.add({ title: 'แก้ไขข้อมูลบุคคลแล้ว', color: 'success' })
     await navigateTo('/people')
   } catch (error: any) {
