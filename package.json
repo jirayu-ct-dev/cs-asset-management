@@ -37,6 +37,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@iconify-json/lucide": "^1.2.123",
     "@nuxt/eslint": "^1.9.0",
     "@nuxt/test-utils": "^3.20.1",
     "@playwright/test": "^1.56.1",
@@ -49,7 +50,7 @@
     "prisma": "7.9.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vue-tsc": "3.3.10",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "vue-tsc": "3.3.10"
   }
 }
