@@ -71,7 +71,7 @@ const runAction = async (row: Record<string, any>, action: string) => {
     <AppState :status="status" :error="error" :empty="items.length === 0" :empty-title="emptyTitle" @retry="reload">
       <div class="overflow-x-auto">
         <table>
-          <thead><tr><th v-for="column in columns" :key="column.key">{{ column.label }}</th><th v-if="hasActions" class="w-28 min-w-28 text-center">ดำเนินการ</th></tr></thead>
+          <thead><tr><th v-for="column in columns" :key="column.key">{{ column.label }}</th><th v-if="hasActions" class="w-px whitespace-nowrap text-center">ดำเนินการ</th></tr></thead>
           <tbody>
             <tr v-for="row in items" :key="row.id">
               <td v-for="(column, index) in columns" :key="column.key">
@@ -81,7 +81,7 @@ const runAction = async (row: Record<string, any>, action: string) => {
                 <NuxtLink v-else-if="index === 0 && row.id && endpoint === '/api/assets'" :to="`/assets/${row.id}`" class="font-bold text-teal-700 hover:underline dark:text-teal-400">{{ getValue(row, column.key) || '—' }}</NuxtLink>
                 <template v-else>{{ getValue(row, column.key) || '—' }}</template>
               </td>
-              <td v-if="hasActions" class="w-28 min-w-28"><div class="flex max-w-28 flex-wrap justify-center gap-1">
+              <td v-if="hasActions" class="w-px whitespace-nowrap"><div class="flex flex-nowrap justify-center gap-1">
                 <NuxtLink v-if="endpoint === '/api/inspections'" :to="`/inspections/${row.id}`" class="grid size-9 shrink-0 place-items-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" title="เปิดรอบ" aria-label="เปิดรอบ"><UIcon name="i-lucide-clipboard-check" class="size-4" /></NuxtLink>
                 <template v-if="endpoint === '/api/loans' && row.status === 'ACTIVE'"><button class="grid size-9 shrink-0 place-items-center rounded-lg bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500" title="รับคืน" aria-label="รับคืน" @click="runAction(row, 'return')"><UIcon name="i-lucide-rotate-ccw" class="size-4" /></button><button class="grid size-9 shrink-0 place-items-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" title="ยกเลิก" aria-label="ยกเลิก" @click="runAction(row, 'cancel')"><UIcon name="i-lucide-x" class="size-4" /></button></template>
                 <template v-if="endpoint === '/api/repairs'"><button v-if="row.status === 'REPORTED'" class="grid size-9 shrink-0 place-items-center rounded-lg bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500" title="ส่งซ่อม" aria-label="ส่งซ่อม" @click="runAction(row, 'send')"><UIcon name="i-lucide-send" class="size-4" /></button><button v-if="row.status === 'SENT'" class="grid size-9 shrink-0 place-items-center rounded-lg bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500" title="รับกลับ" aria-label="รับกลับ" @click="runAction(row, 'close-repair')"><UIcon name="i-lucide-package-check" class="size-4" /></button></template>
