@@ -22,6 +22,7 @@ RUN pnpm exec nuxt prepare && pnpm build
 FROM dependencies AS initializer
 
 COPY . .
+RUN sed -i 's/\r$//' scripts/*.sh && chmod +x scripts/*.sh
 RUN pnpm exec nuxt prepare
 ENTRYPOINT ["sh", "./scripts/docker-init.sh"]
 
