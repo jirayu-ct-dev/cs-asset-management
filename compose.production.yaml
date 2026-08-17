@@ -1,4 +1,11 @@
 services:
+  init:
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:?set POSTGRES_DB}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set initial ADMIN_EMAIL}
+      ADMIN_NAME: ${ADMIN_NAME:?set initial ADMIN_NAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set initial ADMIN_PASSWORD}
+
   app:
     restart: unless-stopped
     environment:

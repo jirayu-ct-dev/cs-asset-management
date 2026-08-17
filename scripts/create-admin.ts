@@ -26,6 +26,7 @@ if (!connectionString) throw new Error('DATABASE_URL is required')
 const email = requiredValue('email', 'ADMIN_EMAIL').toLowerCase()
 const name = requiredValue('name', 'ADMIN_NAME')
 const password = requiredValue('password', 'ADMIN_PASSWORD')
+const skipIfExists = process.argv.includes('--if-not-exists')
 
 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
   throw new Error('Admin email is invalid')
@@ -40,6 +41,10 @@ const hash = new Hash(new Scrypt({}))
 const main = async () => {
   const existingUser = await prisma.user.findUnique({ where: { email } })
   if (existingUser) {
+    if (skipIfExists) {
+      console.info(`Admin already exists: ${email}`)
+      return
+    }
     throw new Error(`Admin account already exists for ${email}`)
   }
 

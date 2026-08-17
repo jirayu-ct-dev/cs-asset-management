@@ -6,6 +6,19 @@
 
 ต้องมี Node.js 22, Corepack/pnpm 11 และ Docker จากนั้นคัดลอก `.env.example` เป็น `.env` และเปลี่ยน `NUXT_SESSION_PASSWORD` ให้เป็นค่าสุ่มอย่างน้อย 32 ตัวอักษร
 
+วิธีที่ง่ายที่สุดคือให้ Docker build แอป, เปิด PostgreSQL, deploy migration, seed ข้อมูลตั้งต้น และสร้าง admin ให้อัตโนมัติ:
+
+```sh
+cp .env.example .env
+docker compose up -d --build
+```
+
+เมื่อ `docker compose ps` แสดง `app` และ `db` ทำงาน ให้เปิด `http://localhost:3000` บัญชี development เริ่มต้นคือ `admin@example.test` / `local-admin-password-1234` ควรเปลี่ยนรหัสผ่านทันที และแก้ค่า `ADMIN_*` ใน `.env` ก่อนใช้งานนอกเครื่องส่วนตัว คำสั่งนี้รันซ้ำได้; initializer จะข้าม admin ที่มีอยู่แล้วโดยไม่เปลี่ยนรหัสผ่าน
+
+ดูสถานะ initializer หรือแอปด้วย `docker compose logs init` และ `docker compose logs -f app`
+
+หากต้องการรัน Nuxt บน host เพื่อพัฒนา ให้เปิดเฉพาะฐานข้อมูลแล้วใช้ pnpm:
+
 ```sh
 docker compose up -d db
 pnpm install --frozen-lockfile

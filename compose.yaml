@@ -1,6 +1,20 @@
 name: cs-asset-management
 
 services:
+  init:
+    build:
+      context: .
+      target: initializer
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-cs_asset_management}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.test}
+      ADMIN_NAME: ${ADMIN_NAME:-ผู้ดูแลระบบทดสอบ}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-local-admin-password-1234}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   app:
     build:
       context: .
@@ -13,8 +27,8 @@ services:
       NUXT_MAX_UPLOAD_SIZE: ${NUXT_MAX_UPLOAD_SIZE:-10485760}
       TZ: ${TZ:-Asia/Bangkok}
     depends_on:
-      db:
-        condition: service_healthy
+      init:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
     volumes:

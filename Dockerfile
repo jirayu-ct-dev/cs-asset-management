@@ -3,16 +3,27 @@ FROM node:22.18.0-bookworm-slim AS dependencies
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
-RUN corepack enable && corepack prepare pnpm@11.18.0 --activate
+RUN apt-get update \
+  && apt-get install --no-install-recommends -y openssl \
+  && rm -rf /var/lib/apt/lists/* \
+  && corepack enable \
+  && corepack prepare pnpm@11.18.0 --activate
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml prisma.config.ts ./
+COPY prisma/schema.prisma ./prisma/schema.prisma
 RUN pnpm install --frozen-lockfile
 
 FROM dependencies AS build
 
 COPY . .
-RUN pnpm build
+RUN pnpm exec nuxt prepare && pnpm build
+
+FROM dependencies AS initializer
+
+COPY . .
+RUN pnpm exec nuxt prepare
+ENTRYPOINT ["sh", "./scripts/docker-init.sh"]
 
 FROM node:22.18.0-bookworm-slim AS runtime
 
