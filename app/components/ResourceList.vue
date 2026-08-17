@@ -1,0 +1,98 @@
+<script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
+interface Column { key: string, label: string, type?: 'date' | 'status' | 'money' }
+const props = defineProps<{
+  endpoint: string
+  title: string
+  description: string
+  columns: Column[]
+  createLabel?: string
+  createTo?: string
+  emptyTitle?: string
+}>()
+const { formatThaiDate } = useThaiDate()
+const { query, items, total, status, error, reload } = useResourceList<Record<string, any>>(props.endpoint)
+const getValue = (row: Record<string, any>, path: string): any => path.split('.').reduce<any>((value, part) => value?.[part], row)
+const money = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 2 })
+const toast = useToast()
+const explainUnavailableCreate = () => toast.add({
+  title: `ยังเพิ่ม${props.title}จากหน้านี้ไม่ได้`,
+  description: 'แบบฟอร์มสำหรับรายการนี้ยังไม่พร้อมใช้งาน กรุณาใช้ workflow ที่เกี่ยวข้อง',
+  color: 'warning',
+})
+const hasActions = computed(() => ['/api/loans', '/api/repairs', '/api/transfers', '/api/disposals', '/api/inspections'].includes(props.endpoint))
+const ownerTypes: Record<string, string> = { '/api/loans': 'loan', '/api/repairs': 'repair', '/api/transfers': 'transfer', '/api/inspections': 'inspection', '/api/disposals': 'disposal' }
+const uploadAttachment = async (event: Event, row: Record<string, any>) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  const ownerType = ownerTypes[props.endpoint]
+  if (!file || !ownerType || !row.id) { toast.add({ title: 'ยังแนบไฟล์ไม่ได้', description: 'กรุณาเลือกไฟล์และตรวจสอบรายการ', color: 'warning' }); return }
+  const body = new FormData(); body.append('file', file); body.append('ownerType', ownerType); body.append('ownerId', row.id)
+  try { await $fetch('/api/attachments', { method: 'POST', body }); await reload(); toast.add({ title: 'แนบหลักฐานแล้ว', color: 'success' }) }
+  catch (error: any) { toast.add({ title: 'แนบไฟล์ไม่สำเร็จ', description: error?.data?.message || 'กรุณาลองใหม่', color: 'error' }) }
+}
+const runAction = async (row: Record<string, any>, action: string) => {
+  const today = new Date().toISOString().slice(0, 10)
+  let body: Record<string, any> = {}
+  if (action === 'return') body = { returnedAt: today, conditionAfter: 'NORMAL', notes: null, openRepair: false }
+  if (action === 'cancel' || action === 'reverse') {
+    const reason = window.prompt('ระบุเหตุผล')?.trim()
+    if (!reason) { toast.add({ title: 'ยังดำเนินการไม่ได้', description: 'ต้องระบุเหตุผลก่อนยืนยัน', color: 'warning' }); return }
+    body = { reason }
+  }
+  if (action === 'send') {
+    const vendor = window.prompt('ชื่อร้าน/ผู้รับซ่อม')?.trim()
+    if (!vendor) { toast.add({ title: 'ยังส่งซ่อมไม่ได้', description: 'ต้องระบุร้านหรือผู้รับซ่อม', color: 'warning' }); return }
+    body = { vendor, sentAt: today }
+  }
+  if (action === 'close-repair') body = { receivedAt: today, successful: true, result: 'ซ่อมสำเร็จ', cost: 0 }
+  if (action === 'complete-disposal') {
+    const documentNumber = window.prompt('เลขที่เอกสารอนุมัติ')?.trim()
+    const method = window.prompt('วิธีจำหน่าย')?.trim()
+    if (!documentNumber || !method) { toast.add({ title: 'ยังจำหน่ายไม่ได้', description: 'ต้องระบุเลขที่เอกสารและวิธีจำหน่าย', color: 'warning' }); return }
+    body = { disposedAt: today, method, documentNumber }
+  }
+  const path: Record<string, string> = { return: 'return', cancel: 'cancel', send: 'send', 'close-repair': 'close', 'complete-disposal': 'complete', reverse: 'reverse' }
+  try { await $fetch(`${props.endpoint}/${row.id}/${path[action]}`, { method: 'POST', body }); toast.add({ title: 'ดำเนินการสำเร็จ', color: 'success' }); await reload() }
+  catch (error: any) { toast.add({ title: 'ดำเนินการไม่สำเร็จ', description: error?.data?.message || 'กรุณาลองใหม่', color: 'error' }) }
+}
+</script>
+
+<template>
+  <PageHeader :title="title" :description="description">
+    <NuxtLink v-if="createTo" :to="createTo" class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-transparent bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500">＋ {{ createLabel || 'เพิ่มรายการ' }}</NuxtLink>
+    <button v-else-if="createLabel" class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-transparent bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500" type="button" @click="explainUnavailableCreate">＋ {{ createLabel }}</button>
+  </PageHeader>
+  <section class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="flex items-center justify-between gap-4 border-b border-slate-200 p-5 dark:border-slate-800 flex flex-wrap items-center gap-2">
+      <div class="relative min-w-0 flex-1 md:min-w-56"><span>⌕</span><input v-model="query" type="search" :placeholder="`ค้นหา${title}…`" @keyup.enter="reload"></div>
+      <button class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="button" @click="reload">ค้นหา</button>
+      <span class="text-sm text-slate-500 dark:text-slate-400">{{ total.toLocaleString('th-TH') }} รายการ</span>
+    </div>
+    <AppState :status="status" :error="error" :empty="items.length === 0" :empty-title="emptyTitle" @retry="reload">
+      <div class="overflow-x-auto">
+        <table>
+          <thead><tr><th v-for="column in columns" :key="column.key">{{ column.label }}</th><th v-if="hasActions">ดำเนินการ</th></tr></thead>
+          <tbody>
+            <tr v-for="row in items" :key="row.id">
+              <td v-for="(column, index) in columns" :key="column.key">
+                <StatusBadge v-if="column.type === 'status'" :value="getValue(row, column.key)" />
+                <template v-else-if="column.type === 'date'">{{ formatThaiDate(getValue(row, column.key)) }}</template>
+                <template v-else-if="column.type === 'money'">{{ money.format(Number(getValue(row, column.key) || 0)) }}</template>
+                <NuxtLink v-else-if="index === 0 && row.id && endpoint === '/api/assets'" :to="`/assets/${row.id}`" class="font-bold text-teal-700 hover:underline dark:text-teal-400">{{ getValue(row, column.key) || '—' }}</NuxtLink>
+                <template v-else>{{ getValue(row, column.key) || '—' }}</template>
+              </td>
+              <td v-if="hasActions"><div class="flex flex-wrap gap-1">
+                <NuxtLink v-if="endpoint === '/api/inspections'" :to="`/inspections/${row.id}`" class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">เปิดรอบ</NuxtLink>
+                <template v-if="endpoint === '/api/loans' && row.status === 'ACTIVE'"><button class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-transparent bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500" @click="runAction(row, 'return')">รับคืน</button><button class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" @click="runAction(row, 'cancel')">ยกเลิก</button></template>
+                <template v-if="endpoint === '/api/repairs'"><button v-if="row.status === 'REPORTED'" class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-transparent bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500" @click="runAction(row, 'send')">ส่งซ่อม</button><button v-if="row.status === 'SENT'" class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-transparent bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500" @click="runAction(row, 'close-repair')">รับกลับ</button></template>
+                <template v-if="endpoint === '/api/disposals' && row.status === 'PROPOSED'"><button class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-transparent bg-teal-700 text-white hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500" @click="runAction(row, 'complete-disposal')">จำหน่ายแล้ว</button><button class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" @click="runAction(row, 'reverse')">ย้อนกลับ</button></template>
+                <label class="inline-flex min-h-10 cursor-pointer items-center rounded-lg border border-slate-300 px-3 py-2 font-bold dark:border-slate-700">แนบหลักฐาน<input class="hidden" type="file" @change="uploadAttachment($event, row)"></label>
+                <a v-for="file in row.attachments || []" :key="file.id" :href="`/api/attachments/${file.id}`" class="inline-flex min-h-10 items-center rounded-lg px-2 font-bold text-teal-700 hover:underline dark:text-teal-400">{{ file.originalName || file.filename || 'ดาวน์โหลดไฟล์' }}</a>
+              </div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </AppState>
+  </section>
+</template>

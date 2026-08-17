@@ -1,0 +1,25 @@
+import { repairInputSchema } from '../../../shared/schemas/workflows'
+
+export default defineEventHandler(async (event) => {
+  const admin = await requireAdmin(event)
+  const input = await readSchemaBody(event, repairInputSchema)
+  const prisma = usePrisma(event)
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM assets WHERE id = ${input.assetId}::uuid FOR UPDATE`
+      const asset = await tx.asset.findUniqueOrThrow({ where: { id: input.assetId } })
+      if (asset.lifecycleStatus === 'DISPOSED') throw createError({ statusCode: 409, statusMessage: 'ครุภัณฑ์จำหน่ายแล้ว' })
+      if (asset.custodyStatus === 'BORROWED') throw createError({ statusCode: 409, statusMessage: 'ต้องรับคืนก่อนแจ้งซ่อม' })
+      const repair = await tx.repairJob.create({
+        data: { assetId: input.assetId, reportedAt: input.reportedAt, reportedBy: admin.name, issue: input.symptom, createdById: admin.id },
+      })
+      await tx.asset.update({ where: { id: input.assetId }, data: { conditionStatus: asset.conditionStatus === 'UNUSABLE' ? 'UNUSABLE' : 'DAMAGED_USABLE' } })
+      await tx.assetEvent.create({ data: { assetId: input.assetId, type: 'REPAIR_REPORTED', summary: `แจ้งชำรุด: ${input.symptom}`, entityType: 'RepairJob', entityId: repair.id, actorId: admin.id } })
+      await writeAudit(tx, { actorId: admin.id, action: 'CREATE', entityType: 'RepairJob', entityId: repair.id, after: repair })
+      return repair
+    })
+  } catch (error: unknown) {
+    if (typeof error === 'object' && error && 'code' in error && error.code === 'P2002') throw createError({ statusCode: 409, statusMessage: 'ครุภัณฑ์มีงานซ่อมที่ยังไม่ปิดแล้ว' })
+    throw error
+  }
+})

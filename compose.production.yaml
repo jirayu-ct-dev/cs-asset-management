@@ -1,0 +1,79 @@
+services:
+  app:
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:?set POSTGRES_DB}
+      NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:?set NUXT_SESSION_PASSWORD}
+      NUXT_PUBLIC_APP_BASE_URL: ${NUXT_PUBLIC_APP_BASE_URL:?set NUXT_PUBLIC_APP_BASE_URL}
+    ports: !reset []
+    expose:
+      - "3000"
+
+  db:
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    ports: !reset []
+
+  backup:
+    image: postgres:17.6-bookworm
+    environment:
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB:?set POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER:?set POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      UPLOAD_DIR: /data/uploads
+      BACKUP_DIR: /backups
+      BACKUP_DAILY_RETENTION: ${BACKUP_DAILY_RETENTION:-7}
+      BACKUP_WEEKLY_RETENTION: ${BACKUP_WEEKLY_RETENTION:-4}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_HEALTH_MAX_MINUTES: ${BACKUP_HEALTH_MAX_MINUTES:-1500}
+      BACKUP_REPLICA_DIR: /replica
+      BACKUP_REQUIRE_REPLICA: "true"
+      TZ: ${TZ:-Asia/Bangkok}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads-data:/data/uploads:ro
+      - backup-data:/backups
+      - type: bind
+        source: ${BACKUP_REPLICA_PATH:?set BACKUP_REPLICA_PATH to an off-machine mounted directory}
+        target: /replica
+      - ./scripts/backup.sh:/usr/local/bin/asset-backup:ro
+      - ./scripts/restore.sh:/usr/local/bin/asset-restore:ro
+    command: ["sh", "-c", "while true; do /usr/local/bin/asset-backup || exit 1; sleep $${BACKUP_INTERVAL_SECONDS}; done"]
+    healthcheck:
+      test: ["CMD-SHELL", "find /backups/.last-success -mmin -$${BACKUP_HEALTH_MAX_MINUTES} | grep -q ."]
+      interval: 1h
+      timeout: 5s
+      retries: 2
+      start_period: 5m
+    restart: unless-stopped
+
+  restore:
+    image: postgres:17.6-bookworm
+    profiles: [tools]
+    environment:
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB:?set POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER:?set POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      UPLOAD_DIR: /data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads-data:/data/uploads
+      - backup-data:/backups:ro
+      - type: bind
+        source: ${BACKUP_REPLICA_PATH:?set BACKUP_REPLICA_PATH to an off-machine mounted directory}
+        target: /replica
+        read_only: true
+      - ./scripts/restore.sh:/usr/local/bin/asset-restore:ro
+    entrypoint: ["/usr/local/bin/asset-restore"]
+
+volumes:
+  backup-data:

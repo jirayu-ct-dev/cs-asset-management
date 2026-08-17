@@ -1,0 +1,21 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+@import "@fontsource-variable/noto-sans-thai";
+
+@theme {
+  --font-sans: "Noto Sans Thai Variable", "Leelawadee UI", system-ui, sans-serif;
+}
+
+@layer base {
+  *, ::before, ::after { box-sizing: border-box; }
+  body { @apply m-0 bg-slate-50 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100; }
+  button, input, select, textarea { font: inherit; }
+  button { @apply cursor-pointer; }
+  input, select, textarea { @apply min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/15 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100; }
+  textarea { @apply min-h-24 resize-y; }
+  label { @apply grid gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200; }
+  table { @apply w-full border-collapse text-left text-sm; }
+  th { @apply whitespace-nowrap bg-slate-50 text-xs font-extrabold text-slate-600 dark:bg-slate-950 dark:text-slate-300; }
+  th, td { @apply border-b border-slate-200 px-4 py-3 align-middle dark:border-slate-800; }
+  tbody tr { @apply hover:bg-slate-50 dark:hover:bg-slate-800/50; }
+}

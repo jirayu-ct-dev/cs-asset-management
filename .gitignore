@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+.nuxt/
+.output/
+node_modules/
+.pnpm-store/
+coverage/
+playwright-report/
+test-results/
+storage/
+uploads/
+backups/
+*.log
+*.sql
+!prisma/migrations/**/*.sql
+.DS_Store

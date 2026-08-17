@@ -1,0 +1,524 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AssetLifecycleStatus {
+  ACTIVE
+  PROPOSED_FOR_DISPOSAL
+  DISPOSED
+}
+
+enum AssetCustodyStatus {
+  AVAILABLE
+  BORROWED
+  IN_REPAIR
+  MISSING
+}
+
+enum AssetCondition {
+  NORMAL
+  DAMAGED_USABLE
+  UNUSABLE
+}
+
+enum PersonType {
+  STUDENT
+  STAFF
+  EXTERNAL
+}
+
+enum LoanStatus {
+  ACTIVE
+  RETURNED
+  CANCELLED
+}
+
+enum RepairStatus {
+  REPORTED
+  SENT
+  COMPLETED
+  CANCELLED
+}
+
+enum RepairOutcome {
+  REPAIRED
+  UNREPAIRABLE
+  OTHER
+}
+
+enum InspectionRoundStatus {
+  OPEN
+  CLOSED
+}
+
+enum InspectionResult {
+  FOUND_OK
+  FOUND_DAMAGED
+  REPAIR_REQUESTED
+  MISSING
+  DISPOSAL_REQUESTED
+  OTHER
+}
+
+enum DisposalStatus {
+  PROPOSED
+  COMPLETED
+  CANCELLED
+}
+
+enum ImportBatchStatus {
+  REVIEWING
+  IMPORTED
+  CANCELLED
+  FAILED
+}
+
+enum ImportRowStatus {
+  READY
+  INVALID
+  DUPLICATE_FILE
+  DUPLICATE_DATABASE
+  IMPORTED
+  SKIPPED
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique @db.VarChar(320)
+  name         String    @db.VarChar(200)
+  passwordHash String    @map("password_hash") @db.Text
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  assetEvents      AssetEvent[]
+  loansCreated     Loan[]            @relation("LoanCreator")
+  loansReturned    Loan[]            @relation("LoanReturner")
+  repairsCreated   RepairJob[]       @relation("RepairCreator")
+  repairsClosed    RepairJob[]       @relation("RepairCloser")
+  transfersCreated Transfer[]
+  roundsCreated    InspectionRound[] @relation("InspectionRoundCreator")
+  roundsClosed     InspectionRound[] @relation("InspectionRoundCloser")
+  inspections      InspectionItem[]  @relation("InspectionRecorder")
+  disposalsCreated Disposal[]        @relation("DisposalCreator")
+  disposalsClosed  Disposal[]        @relation("DisposalCompleter")
+  imports          ImportBatch[]
+  auditLogs        AuditLog[]
+
+  @@map("users")
+}
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(50)
+  name      String   @db.VarChar(200)
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  assets    Asset[]
+
+  @@index([isActive, sortOrder])
+  @@map("categories")
+}
+
+model Unit {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(50)
+  name      String   @db.VarChar(100)
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  assets    Asset[]
+
+  @@index([isActive, sortOrder])
+  @@map("units")
+}
+
+model Location {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(50)
+  name      String   @db.VarChar(200)
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  assets              Asset[]           @relation("CurrentLocation")
+  transfersFrom       Transfer[]        @relation("TransferFromLocation")
+  transfersTo         Transfer[]        @relation("TransferToLocation")
+  inspectionRounds    InspectionRound[]
+  inspectionSnapshots InspectionItem[]  @relation("InspectionSnapshotLocation")
+  inspectionActuals   InspectionItem[]  @relation("InspectionActualLocation")
+
+  @@index([isActive, sortOrder])
+  @@map("locations")
+}
+
+model FundingSource {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(50)
+  name      String   @db.VarChar(200)
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  assets    Asset[]
+
+  @@index([isActive, sortOrder])
+  @@map("funding_sources")
+}
+
+model Person {
+  id         String     @id @default(uuid()) @db.Uuid
+  code       String?    @unique @db.VarChar(100)
+  name       String     @db.VarChar(200)
+  type       PersonType
+  department String?    @db.VarChar(200)
+  phone      String?    @db.VarChar(50)
+  email      String?    @db.VarChar(320)
+  isActive   Boolean    @default(true) @map("is_active")
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  responsibleAssets Asset[]          @relation("ResponsiblePerson")
+  loans             Loan[]
+  transfersFrom     Transfer[]       @relation("TransferFromPerson")
+  transfersTo       Transfer[]       @relation("TransferToPerson")
+  inspectionItems   InspectionItem[] @relation("InspectionSnapshotPerson")
+
+  @@index([name])
+  @@index([isActive, type])
+  @@map("people")
+}
+
+model Asset {
+  id                  String               @id @default(uuid()) @db.Uuid
+  publicId            String               @unique @default(cuid()) @map("public_id") @db.VarChar(30)
+  assetNumber         String               @unique @map("asset_number") @db.VarChar(100)
+  internalCode        String?              @unique @map("internal_code") @db.VarChar(100)
+  name                String               @db.VarChar(300)
+  categoryId          String               @map("category_id") @db.Uuid
+  unitId              String               @map("unit_id") @db.Uuid
+  quantity            Int                  @default(1)
+  brand               String?              @db.VarChar(150)
+  model               String?              @db.VarChar(150)
+  serialNumber        String?              @map("serial_number") @db.VarChar(150)
+  acquisitionDate     DateTime?            @map("acquisition_date") @db.Date
+  price               Decimal?             @db.Decimal(14, 2)
+  fundingSourceId     String?              @map("funding_source_id") @db.Uuid
+  locationId          String?              @map("location_id") @db.Uuid
+  responsiblePersonId String?              @map("responsible_person_id") @db.Uuid
+  lifecycleStatus     AssetLifecycleStatus @default(ACTIVE) @map("lifecycle_status")
+  custodyStatus       AssetCustodyStatus   @default(AVAILABLE) @map("custody_status")
+  conditionStatus     AssetCondition       @default(NORMAL) @map("condition_status")
+  notes               String?              @db.Text
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  category          Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  unit              Unit             @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  fundingSource     FundingSource?   @relation(fields: [fundingSourceId], references: [id], onDelete: Restrict)
+  location          Location?        @relation("CurrentLocation", fields: [locationId], references: [id], onDelete: Restrict)
+  responsiblePerson Person?          @relation("ResponsiblePerson", fields: [responsiblePersonId], references: [id], onDelete: Restrict)
+  events            AssetEvent[]
+  loans             Loan[]
+  repairJobs        RepairJob[]
+  transfers         Transfer[]
+  inspectionItems   InspectionItem[]
+  disposals         Disposal[]
+  attachments       Attachment[]
+  importRows        ImportRow[]
+
+  @@index([name])
+  @@index([serialNumber])
+  @@index([categoryId])
+  @@index([locationId])
+  @@index([responsiblePersonId])
+  @@index([lifecycleStatus, custodyStatus, conditionStatus])
+  @@map("assets")
+}
+
+model AssetEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  assetId    String   @map("asset_id") @db.Uuid
+  type       String   @db.VarChar(80)
+  summary    String   @db.VarChar(500)
+  details    Json?
+  entityType String?  @map("entity_type") @db.VarChar(80)
+  entityId   String?  @map("entity_id") @db.Uuid
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  actorId    String?  @map("actor_id") @db.Uuid
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([assetId, occurredAt])
+  @@index([entityType, entityId])
+  @@map("asset_events")
+}
+
+model Loan {
+  id              String          @id @default(uuid()) @db.Uuid
+  assetId         String          @map("asset_id") @db.Uuid
+  borrowerId      String          @map("borrower_id") @db.Uuid
+  purpose         String          @db.VarChar(500)
+  loanedAt        DateTime        @map("loaned_at") @db.Timestamptz(3)
+  dueAt           DateTime        @map("due_at") @db.Timestamptz(3)
+  returnedAt      DateTime?       @map("returned_at") @db.Timestamptz(3)
+  conditionBefore AssetCondition  @map("condition_before")
+  conditionAfter  AssetCondition? @map("condition_after")
+  status          LoanStatus      @default(ACTIVE)
+  notes           String?         @db.Text
+  cancelReason    String?         @map("cancel_reason") @db.Text
+  cancelledAt     DateTime?       @map("cancelled_at") @db.Timestamptz(3)
+  createdById     String          @map("created_by_id") @db.Uuid
+  returnedById    String?         @map("returned_by_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  asset       Asset        @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  borrower    Person       @relation(fields: [borrowerId], references: [id], onDelete: Restrict)
+  createdBy   User         @relation("LoanCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  returnedBy  User?        @relation("LoanReturner", fields: [returnedById], references: [id], onDelete: Restrict)
+  attachments Attachment[]
+
+  @@index([borrowerId])
+  @@index([dueAt, status])
+  @@map("loans")
+}
+
+model RepairJob {
+  id             String         @id @default(uuid()) @db.Uuid
+  assetId        String         @map("asset_id") @db.Uuid
+  reportedAt     DateTime       @map("reported_at") @db.Timestamptz(3)
+  reportedBy     String         @map("reported_by") @db.VarChar(200)
+  issue          String         @db.Text
+  status         RepairStatus   @default(REPORTED)
+  vendor         String?        @db.VarChar(250)
+  sentAt         DateTime?      @map("sent_at") @db.Timestamptz(3)
+  documentNumber String?        @map("document_number") @db.VarChar(100)
+  expectedBackAt DateTime?      @map("expected_back_at") @db.Date
+  completedAt    DateTime?      @map("completed_at") @db.Timestamptz(3)
+  outcome        RepairOutcome?
+  resultNotes    String?        @map("result_notes") @db.Text
+  cost           Decimal?       @db.Decimal(14, 2)
+  cancelReason   String?        @map("cancel_reason") @db.Text
+  cancelledAt    DateTime?      @map("cancelled_at") @db.Timestamptz(3)
+  createdById    String         @map("created_by_id") @db.Uuid
+  closedById     String?        @map("closed_by_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  asset       Asset        @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  createdBy   User         @relation("RepairCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  closedBy    User?        @relation("RepairCloser", fields: [closedById], references: [id], onDelete: Restrict)
+  attachments Attachment[]
+
+  @@index([status, expectedBackAt])
+  @@map("repair_jobs")
+}
+
+model Transfer {
+  id                String   @id @default(uuid()) @db.Uuid
+  assetId           String   @map("asset_id") @db.Uuid
+  fromLocationId    String?  @map("from_location_id") @db.Uuid
+  toLocationId      String?  @map("to_location_id") @db.Uuid
+  fromResponsibleId String?  @map("from_responsible_id") @db.Uuid
+  toResponsibleId   String?  @map("to_responsible_id") @db.Uuid
+  transferredAt     DateTime @map("transferred_at") @db.Timestamptz(3)
+  reason            String   @db.Text
+  createdById       String   @map("created_by_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  asset           Asset        @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  fromLocation    Location?    @relation("TransferFromLocation", fields: [fromLocationId], references: [id], onDelete: Restrict)
+  toLocation      Location?    @relation("TransferToLocation", fields: [toLocationId], references: [id], onDelete: Restrict)
+  fromResponsible Person?      @relation("TransferFromPerson", fields: [fromResponsibleId], references: [id], onDelete: Restrict)
+  toResponsible   Person?      @relation("TransferToPerson", fields: [toResponsibleId], references: [id], onDelete: Restrict)
+  createdBy       User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  attachments     Attachment[]
+
+  @@index([assetId, transferredAt])
+  @@map("transfers")
+}
+
+model InspectionRound {
+  id             String                @id @default(uuid()) @db.Uuid
+  publicId       String                @unique @default(cuid()) @map("public_id") @db.VarChar(30)
+  name           String                @db.VarChar(250)
+  fiscalYear     Int                   @map("fiscal_year")
+  locationId     String?               @map("location_id") @db.Uuid
+  status         InspectionRoundStatus @default(OPEN)
+  openedAt       DateTime              @default(now()) @map("opened_at") @db.Timestamptz(3)
+  closedAt       DateTime?             @map("closed_at") @db.Timestamptz(3)
+  reopenedReason String?               @map("reopened_reason") @db.Text
+  createdById    String                @map("created_by_id") @db.Uuid
+  closedById     String?               @map("closed_by_id") @db.Uuid
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  location    Location?        @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  createdBy   User             @relation("InspectionRoundCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  closedBy    User?            @relation("InspectionRoundCloser", fields: [closedById], references: [id], onDelete: Restrict)
+  items       InspectionItem[]
+  attachments Attachment[]
+
+  @@index([fiscalYear, status])
+  @@map("inspection_rounds")
+}
+
+model InspectionItem {
+  id                    String            @id @default(uuid()) @db.Uuid
+  roundId               String            @map("round_id") @db.Uuid
+  assetId               String            @map("asset_id") @db.Uuid
+  snapshotAssetNumber   String            @map("snapshot_asset_number") @db.VarChar(100)
+  snapshotName          String            @map("snapshot_name") @db.VarChar(300)
+  snapshotLocationId    String?           @map("snapshot_location_id") @db.Uuid
+  snapshotResponsibleId String?           @map("snapshot_responsible_id") @db.Uuid
+  snapshotCondition     AssetCondition    @map("snapshot_condition")
+  result                InspectionResult?
+  actualLocationId      String?           @map("actual_location_id") @db.Uuid
+  actualCondition       AssetCondition?   @map("actual_condition")
+  notes                 String?           @db.Text
+  inspectedAt           DateTime?         @map("inspected_at") @db.Timestamptz(3)
+  inspectedById         String?           @map("inspected_by_id") @db.Uuid
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  round               InspectionRound @relation(fields: [roundId], references: [id], onDelete: Restrict)
+  asset               Asset           @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  snapshotLocation    Location?       @relation("InspectionSnapshotLocation", fields: [snapshotLocationId], references: [id], onDelete: Restrict)
+  snapshotResponsible Person?         @relation("InspectionSnapshotPerson", fields: [snapshotResponsibleId], references: [id], onDelete: Restrict)
+  actualLocation      Location?       @relation("InspectionActualLocation", fields: [actualLocationId], references: [id], onDelete: Restrict)
+  inspectedBy         User?           @relation("InspectionRecorder", fields: [inspectedById], references: [id], onDelete: Restrict)
+
+  @@unique([roundId, assetId])
+  @@index([roundId, result])
+  @@map("inspection_items")
+}
+
+model Disposal {
+  id             String         @id @default(uuid()) @db.Uuid
+  assetId        String         @map("asset_id") @db.Uuid
+  status         DisposalStatus @default(PROPOSED)
+  proposedAt     DateTime       @map("proposed_at") @db.Timestamptz(3)
+  reason         String         @db.Text
+  completedAt    DateTime?      @map("completed_at") @db.Timestamptz(3)
+  method         String?        @db.VarChar(200)
+  documentNumber String?        @map("document_number") @db.VarChar(100)
+  cancelReason   String?        @map("cancel_reason") @db.Text
+  cancelledAt    DateTime?      @map("cancelled_at") @db.Timestamptz(3)
+  createdById    String         @map("created_by_id") @db.Uuid
+  completedById  String?        @map("completed_by_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  asset       Asset        @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  createdBy   User         @relation("DisposalCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  completedBy User?        @relation("DisposalCompleter", fields: [completedById], references: [id], onDelete: Restrict)
+  attachments Attachment[]
+
+  @@index([status, proposedAt])
+  @@map("disposals")
+}
+
+model Attachment {
+  id             String   @id @default(uuid()) @db.Uuid
+  assetId        String?  @map("asset_id") @db.Uuid
+  loanId         String?  @map("loan_id") @db.Uuid
+  repairJobId    String?  @map("repair_job_id") @db.Uuid
+  transferId     String?  @map("transfer_id") @db.Uuid
+  inspectionId   String?  @map("inspection_round_id") @db.Uuid
+  disposalId     String?  @map("disposal_id") @db.Uuid
+  originalName   String   @map("original_name") @db.VarChar(255)
+  storedName     String   @unique @map("stored_name") @db.VarChar(255)
+  storagePath    String   @map("storage_path") @db.Text
+  mimeType       String   @map("mime_type") @db.VarChar(150)
+  sizeBytes      BigInt   @map("size_bytes")
+  checksumSha256 String?  @map("checksum_sha256") @db.Char(64)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  asset           Asset?           @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  loan            Loan?            @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  repairJob       RepairJob?       @relation(fields: [repairJobId], references: [id], onDelete: Restrict)
+  transfer        Transfer?        @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  inspectionRound InspectionRound? @relation(fields: [inspectionId], references: [id], onDelete: Restrict)
+  disposal        Disposal?        @relation(fields: [disposalId], references: [id], onDelete: Restrict)
+
+  @@index([assetId])
+  @@map("attachments")
+}
+
+model ImportBatch {
+  id               String            @id @default(uuid()) @db.Uuid
+  publicId         String            @unique @default(cuid()) @map("public_id") @db.VarChar(30)
+  originalFilename String            @map("original_filename") @db.VarChar(255)
+  storedPath       String            @map("stored_path") @db.Text
+  mimeType         String            @map("mime_type") @db.VarChar(150)
+  sheetName        String?           @map("sheet_name") @db.VarChar(200)
+  delimiter        String?           @db.VarChar(10)
+  columnMapping    Json              @map("column_mapping")
+  status           ImportBatchStatus @default(REVIEWING)
+  totalRows        Int               @default(0) @map("total_rows")
+  readyRows        Int               @default(0) @map("ready_rows")
+  importedRows     Int               @default(0) @map("imported_rows")
+  errorRows        Int               @default(0) @map("error_rows")
+  createdById      String            @map("created_by_id") @db.Uuid
+  confirmedAt      DateTime?         @map("confirmed_at") @db.Timestamptz(3)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  createdBy User        @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  rows      ImportRow[]
+
+  @@index([status, createdAt])
+  @@map("import_batches")
+}
+
+model ImportRow {
+  id             String          @id @default(uuid()) @db.Uuid
+  batchId        String          @map("batch_id") @db.Uuid
+  rowNumber      Int             @map("row_number")
+  rawData        Json            @map("raw_data")
+  normalizedData Json?           @map("normalized_data")
+  status         ImportRowStatus
+  errors         Json?
+  assetId        String?         @map("asset_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  asset Asset?      @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@unique([batchId, rowNumber])
+  @@index([batchId, status])
+  @@map("import_rows")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(80)
+  entityId   String?  @map("entity_id") @db.Uuid
+  before     Json?
+  after      Json?
+  reason     String?  @db.Text
+  ipAddress  String?  @map("ip_address") @db.Inet
+  userAgent  String?  @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
