@@ -23,7 +23,7 @@ const submit = async () => {
 <template>
   <PageHeader title="เพิ่มครุภัณฑ์" description="กรอกข้อมูลทะเบียนปัจจุบันให้ครบถ้วน"><NuxtLink to="/assets" class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3.5 py-2 font-bold border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">ยกเลิก</NuxtLink></PageHeader>
   <AppState :status="status" :error="error" @retry="refresh">
-    <form class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 p-5" @submit.prevent="submit">
+    <form class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 [&_input]:h-11 [&_select]:h-11" @submit.prevent="submit">
       <div v-if="submitError" class="rounded-lg p-3 text-sm bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300 md:col-span-2" role="alert">{{ submitError }}</div>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <label><span class="text-slate-700 after:text-red-600 after:content-['*']">หมายเลขครุภัณฑ์</span><input v-model.trim="form.assetNumber" required maxlength="100" placeholder="เช่น 7440-001-0001"></label>
