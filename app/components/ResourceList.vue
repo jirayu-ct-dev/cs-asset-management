@@ -14,8 +14,19 @@ const props = defineProps<{
   createTo?: string
   emptyTitle?: string
 }>()
+const filterKeys: Record<string, string[]> = {
+  '/api/assets': ['categoryId', 'locationId', 'custodyStatus', 'conditionStatus'],
+  '/api/people': ['type', 'isActive'],
+  '/api/loans': ['status'],
+  '/api/repairs': ['status'],
+  '/api/transfers': ['locationId'],
+  '/api/inspections': ['status', 'locationId'],
+  '/api/disposals': ['status'],
+  '/api/audit': ['entityType'],
+}
+const initialFilters = Object.fromEntries((filterKeys[props.endpoint] || []).map(key => [key, '']))
 const { formatThaiDate } = useThaiDate()
-const { query, filters, page, pageSize, items, total, totalPages, firstItem, lastItem, status, error, reload, goToPage } = useResourceList<Record<string, any>>(props.endpoint)
+const { query, filters, page, pageSize, items, total, totalPages, firstItem, lastItem, status, error, reload, goToPage } = useResourceList<Record<string, any>>(props.endpoint, initialFilters)
 const getValue = (row: Record<string, any>, path: string): any => path.split('.').reduce<any>((value, part) => value?.[part], row)
 const money = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 2 })
 const toast = useToast()

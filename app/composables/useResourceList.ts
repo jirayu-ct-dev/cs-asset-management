@@ -6,12 +6,12 @@ export interface ApiListResponse<T> {
   pageSize?: number
 }
 
-export const useResourceList = <T>(endpoint: string) => {
+export const useResourceList = <T>(endpoint: string, initialFilters: Record<string, string> = {}) => {
   const route = useRoute()
   const query = ref('')
   const page = ref(1)
   const pageSize = ref(20)
-  const filters = reactive<Record<string, string>>({})
+  const filters = reactive<Record<string, string>>({ ...initialFilters })
   const requestQuery = computed(() => ({
     page: page.value,
     pageSize: pageSize.value,

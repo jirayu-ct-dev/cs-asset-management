@@ -178,6 +178,7 @@ test('admin can complete core database-backed workflows', async ({ page, context
 
   await page.goto('/assets')
   await page.waitForLoadState('networkidle')
+  await expect(page.getByLabel('ทุกหมวด')).toHaveValue('')
   await page.getByLabel('ทุกหมวด').selectOption(category.id)
   await page.getByPlaceholder('ค้นหาทะเบียนครุภัณฑ์ทันที…').fill(assetNumber)
   await expect(page.locator('tbody tr')).toHaveCount(1)
