@@ -11,11 +11,12 @@ const meta: Record<string, { title: string, back: string }> = {
 }
 const current = meta[type]
 if (!current) throw createError({ statusCode: 404, statusMessage: 'ไม่พบแบบฟอร์ม' })
+const queryValue = (key: string, fallback = '') => typeof route.query[key] === 'string' ? String(route.query[key]) : fallback
 const form = reactive<any>({
-  name: '', code: '', type: 'STAFF', department: '', phone: '', email: '', assetId: String(route.query.assetId || ''),
-  borrowerId: '', purpose: '', borrowedAt: today, dueAt: today, conditionBefore: 'NORMAL', reportedAt: today, symptom: '',
-  destinationLocationId: '', newResponsiblePersonId: '', transferredAt: today, reason: '', fiscalYear: new Date().getFullYear() + 543,
-  locationId: '', proposedAt: today,
+  name: '', code: '', type: 'STAFF', department: '', phone: '', email: '', assetId: queryValue('assetId'),
+  borrowerId: queryValue('borrowerId'), purpose: queryValue('purpose'), borrowedAt: queryValue('borrowedAt', today), dueAt: queryValue('dueAt', today), conditionBefore: queryValue('conditionBefore', 'NORMAL'), reportedAt: queryValue('reportedAt', today), symptom: queryValue('symptom'),
+  destinationLocationId: queryValue('destinationLocationId'), newResponsiblePersonId: queryValue('newResponsiblePersonId'), transferredAt: queryValue('transferredAt', today), reason: queryValue('reason'), fiscalYear: new Date().getFullYear() + 543,
+  locationId: '', proposedAt: queryValue('proposedAt', today),
 })
 const { data: assetsData } = useFetch<any>('/api/assets', { query: { pageSize: 100 } })
 const { data: peopleData } = useFetch<any>('/api/people', { query: { pageSize: 100 } })

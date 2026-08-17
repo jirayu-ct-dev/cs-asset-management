@@ -106,6 +106,30 @@ test('regression: workflow reversals preserve snapshots and reject stale writes'
     data: { reason: 'ห้ามยกเลิกซ้ำ' },
   })).status()).toBe(409)
 
+  const repairEditAsset = await createAsset(page.request, references, `REG-RE-${unique}`)
+  const repairEditResponse = await page.request.post('/api/repairs', {
+    data: { assetId: repairEditAsset.id, reportedAt: '2026-08-25T00:00:00.000Z', symptom: 'พัดลมมีเสียงดัง' },
+  })
+  expect(repairEditResponse.status()).toBe(200)
+  const repairEdit = await repairEditResponse.json() as Entity
+  await page.goto('/repairs')
+  const repairEditRow = page.locator('tbody tr').filter({ hasText: `REG-RE-${unique}` })
+  await expect(repairEditRow).toHaveCount(1)
+  await page.waitForLoadState('networkidle')
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('prompt')
+    await dialog.accept('เลือกครุภัณฑ์ในงานซ่อมผิด')
+  })
+  await repairEditRow.getByRole('button', { name: 'แก้ไขงานซ่อม' }).click()
+  await expect(page).toHaveURL(/\/workflows\/repairs\/create\?/)
+  await expect(page.getByLabel('ครุภัณฑ์')).toHaveValue(repairEditAsset.id)
+  await expect(page.getByLabel('วันที่แจ้ง')).toHaveValue('2026-08-25')
+  await expect(page.getByLabel('อาการชำรุด')).toHaveValue('พัดลมมีเสียงดัง')
+  const cancelledRepairs = await page.request.get('/api/repairs?pageSize=100')
+  expect(cancelledRepairs.status()).toBe(200)
+  const cancelledRepairItems = (await cancelledRepairs.json() as { items: Array<Entity & { status: string }> }).items
+  expect(cancelledRepairItems.find(item => item.id === repairEdit.id)?.status).toBe('CANCELLED')
+
   const transferAsset = await createAsset(page.request, references, `REG-T-${unique}`)
   const firstTransferResponse = await page.request.post('/api/transfers', {
     data: {
@@ -175,6 +199,21 @@ test('regression: workflow reversals preserve snapshots and reject stale writes'
   expect((await page.request.post(`/api/transfers/${borrowedTransfer.id}/reverse`, {
     data: { reason: 'ต้องถูกปฏิเสธเพราะกำลังถูกยืม' },
   })).status()).toBe(409)
+  await page.goto(`/loans?assetId=${borrowedTransferAsset.id}`)
+  await expect(page.locator('tbody tr')).toHaveCount(1)
+  await page.waitForLoadState('networkidle')
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('prompt')
+    await dialog.accept('เลือกครุภัณฑ์ผิดรายการ')
+  })
+  await page.getByRole('button', { name: 'แก้ไขรายการยืม' }).click()
+  await expect(page).toHaveURL(/\/workflows\/loans\/create\?/)
+  await expect(page.getByLabel('ครุภัณฑ์')).toHaveValue(borrowedTransferAsset.id)
+  await expect(page.getByLabel('ผู้ยืม')).toHaveValue(borrower.id)
+  await expect(page.getByLabel('วัตถุประสงค์')).toHaveValue('ทดสอบห้ามย้อนการย้ายระหว่างถูกยืม')
+  const correctedLoanList = await page.request.get(`/api/loans?assetId=${borrowedTransferAsset.id}`)
+  expect(correctedLoanList.status()).toBe(200)
+  expect(await correctedLoanList.json()).toMatchObject({ items: [{ status: 'CANCELLED' }] })
 
   const disposedTransferAsset = await createAsset(page.request, references, `REG-TD-${unique}`)
   const disposedTransferResponse = await page.request.post('/api/transfers', {
