@@ -174,7 +174,7 @@ const runAction = async (row: Record<string, any>, action: string) => {
   </PageHeader>
   <section class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
     <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 p-5 dark:border-slate-800">
-      <div class="relative min-w-0 flex-1 md:min-w-56"><UIcon name="i-lucide-search" class="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" /><input v-model="query" class="pl-10" type="search" :placeholder="`ค้นหา${title}ทันที…`"></div>
+      <div class="relative w-full min-w-0 md:w-auto md:min-w-56 md:max-w-md md:flex-1"><UIcon name="i-lucide-search" class="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" /><input v-model="query" class="pl-10" type="search" :placeholder="`ค้นหา${title}ทันที…`"></div>
       <select v-for="filter in filterDefinitions" :key="filter.key" v-model="filters[filter.key]" class="w-auto min-w-36" :aria-label="filter.label"><option value="">{{ filter.label }}</option><option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option></select>
       <button class="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="button" @click="refreshTable"><UIcon name="i-lucide-refresh-cw" class="size-4" />รีเฟรช</button>
       <span class="ml-auto text-sm text-slate-500 dark:text-slate-400">{{ total.toLocaleString('th-TH') }} รายการ</span>
